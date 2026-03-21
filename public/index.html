@@ -6,53 +6,55 @@
   <title>Food Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
 
     /* Macro Summary */
     #macro-bar {
       position: sticky;
       top: 0;
       z-index: 100;
-      background: #1a1a2e;
-      color: white;
+      background: #111111;
+      color: #e0e0e0;
       padding: 12px 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      border-bottom: 1px solid #222222;
     }
-    #macro-bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; opacity: 0.7; }
+    #macro-bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; opacity: 0.4; }
     .macro-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 6px;
     }
     .macro-cell { text-align: center; }
-    .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.6; }
-    .macro-cell .value { font-size: 18px; font-weight: 700; }
-    .macro-cell .target { font-size: 10px; opacity: 0.5; }
+    .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.4; }
+    .macro-cell .value { font-size: 18px; font-weight: 700; color: #ffffff; }
+    .macro-cell .target { font-size: 10px; opacity: 0.3; }
     .macro-cell .gap { font-size: 12px; font-weight: 600; margin-top: 2px; }
-    .gap-ok { color: #4ade80; }
-    .gap-over { color: #f87171; }
-    .gap-neutral { color: #94a3b8; }
+    .gap-ok { color: #cccccc; }
+    .gap-over { color: #888888; }
+    .gap-neutral { color: #555555; }
 
     /* Date bar */
     #date-bar {
-      background: #16213e;
-      color: #94a3b8;
+      background: #0f0f0f;
+      color: #666666;
       padding: 8px 16px;
       font-size: 13px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid #1a1a1a;
     }
     #date-bar button {
       background: none;
-      border: 1px solid #334155;
-      color: #94a3b8;
+      border: 1px solid #2a2a2a;
+      color: #666666;
       padding: 3px 10px;
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
     }
-    #date-bar button:hover { background: #334155; }
+    #date-bar button:hover { background: #1e1e1e; color: #aaaaaa; }
 
     /* Meal sections */
     .section { margin: 12px; }
@@ -61,24 +63,24 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      color: #64748b;
+      color: #444444;
       padding: 6px 4px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid #1e1e1e;
       margin-bottom: 6px;
     }
     .meal-card {
-      background: white;
+      background: #161616;
       border-radius: 10px;
       padding: 12px 14px;
       margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid #1e1e1e;
     }
     .meal-info { flex: 1; }
-    .meal-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
-    .meal-macros { font-size: 11px; color: #64748b; }
+    .meal-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: #dddddd; }
+    .meal-macros { font-size: 11px; color: #4a4a4a; }
     .meal-controls { display: flex; align-items: center; gap: 8px; }
     .meal-controls button {
       width: 32px; height: 32px;
@@ -90,44 +92,47 @@
       display: flex; align-items: center; justify-content: center;
       transition: transform 0.1s;
     }
-    .btn-minus { background: #fee2e2; color: #dc2626; }
-    .btn-plus  { background: #dcfce7; color: #16a34a; }
+    .btn-minus { background: #222222; color: #888888; }
+    .btn-plus  { background: #2a2a2a; color: #cccccc; }
+    .meal-controls button:hover { background: #333333; }
     .meal-controls button:active { transform: scale(0.9); }
-    .meal-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
-    .meal-count { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; }
+    .meal-controls button:disabled { opacity: 0.2; cursor: not-allowed; }
+    .meal-count { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; color: #ffffff; }
 
     /* History modal */
     #history-btn {
       position: fixed;
       bottom: 20px; right: 20px;
-      background: #1a1a2e;
-      color: white;
-      border: none;
+      background: #1e1e1e;
+      color: #aaaaaa;
+      border: 1px solid #2a2a2a;
       border-radius: 50%;
       width: 48px; height: 48px;
       font-size: 20px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     #history-overlay {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.7);
       z-index: 200;
     }
     #history-overlay.open { display: flex; align-items: flex-end; }
     #history-panel {
-      background: white;
+      background: #111111;
+      color: #e0e0e0;
       width: 100%;
       max-height: 70vh;
       border-radius: 16px 16px 0 0;
       padding: 20px;
       overflow-y: auto;
+      border-top: 1px solid #222222;
     }
-    #history-panel h3 { margin-bottom: 16px; }
-    .history-day { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
-    .history-day-date { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-    .history-day-macros { font-size: 12px; color: #64748b; }
+    #history-panel h3 { margin-bottom: 16px; color: #ffffff; }
+    .history-day { padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+    .history-day-date { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #cccccc; }
+    .history-day-macros { font-size: 12px; color: #444444; }
   </style>
 </head>
 <body>
@@ -158,7 +163,7 @@
   <div id="history-panel">
     <h3>Log History</h3>
     <div id="history-list">Loading...</div>
-    <button onclick="closeHistory()" style="margin-top:16px;padding:10px 20px;border:none;background:#1a1a2e;color:white;border-radius:8px;cursor:pointer;">Close</button>
+    <button onclick="closeHistory()" style="margin-top:16px;padding:10px 20px;border:1px solid #2a2a2a;background:#1e1e1e;color:#aaaaaa;border-radius:8px;cursor:pointer;">Close</button>
   </div>
 </div>
 
