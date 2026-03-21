@@ -6,46 +6,40 @@
   <title>Food Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100dvh;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0a0a;
-      color: #e0e0e0;
-      display: flex;
-      flex-direction: column;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
 
     /* Macro Summary */
     #macro-bar {
-      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
       background: #111111;
       color: #e0e0e0;
-      padding: 8px 12px;
+      padding: 12px 16px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.6);
       border-bottom: 1px solid #222222;
     }
+    #macro-bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; opacity: 0.4; }
     .macro-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 4px;
+      gap: 6px;
     }
     .macro-cell { text-align: center; }
-    .macro-cell .label { font-size: 9px; text-transform: uppercase; opacity: 0.4; }
-    .macro-cell .value { font-size: 15px; font-weight: 700; color: #ffffff; line-height: 1.2; }
-    .macro-cell .target { font-size: 9px; opacity: 0.3; }
-    .macro-cell .gap { font-size: 10px; font-weight: 600; }
+    .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.4; }
+    .macro-cell .value { font-size: 18px; font-weight: 700; color: #ffffff; }
+    .macro-cell .target { font-size: 10px; opacity: 0.3; }
+    .macro-cell .gap { font-size: 12px; font-weight: 600; margin-top: 2px; }
     .gap-ok { color: #cccccc; }
     .gap-over { color: #888888; }
     .gap-neutral { color: #555555; }
 
     /* Date bar */
     #date-bar {
-      flex-shrink: 0;
       background: #0f0f0f;
       color: #666666;
-      padding: 5px 12px;
-      font-size: 12px;
+      padding: 8px 16px;
+      font-size: 13px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -55,56 +49,44 @@
       background: none;
       border: 1px solid #2a2a2a;
       color: #666666;
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 12px;
     }
     #date-bar button:hover { background: #1e1e1e; color: #aaaaaa; }
 
-    /* Meals container */
-    #meals-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      padding: 4px 8px;
-      gap: 4px;
-    }
-
     /* Meal sections */
-    .section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .section { margin: 12px; }
     .section-header {
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: #444444;
-      padding: 2px 4px;
+      padding: 6px 4px;
       border-bottom: 1px solid #1e1e1e;
-      margin-bottom: 3px;
-      flex-shrink: 0;
+      margin-bottom: 6px;
     }
     .meal-card {
       background: #161616;
-      border-radius: 8px;
-      padding: 6px 10px;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       border: 1px solid #1e1e1e;
-      flex: 1;
-      min-height: 0;
     }
-    .meal-info { flex: 1; min-width: 0; }
-    .meal-name { font-size: 12px; font-weight: 600; color: #dddddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meal-macros { font-size: 10px; color: #4a4a4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meal-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .meal-info { flex: 1; }
+    .meal-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: #dddddd; }
+    .meal-macros { font-size: 11px; color: #4a4a4a; }
+    .meal-controls { display: flex; align-items: center; gap: 8px; }
     .meal-controls button {
-      width: 28px; height: 28px;
+      width: 32px; height: 32px;
       border-radius: 50%;
       border: none;
-      font-size: 18px;
+      font-size: 20px;
       line-height: 1;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -115,7 +97,7 @@
     .meal-controls button:hover { background: #333333; }
     .meal-controls button:active { transform: scale(0.9); }
     .meal-controls button:disabled { opacity: 0.2; cursor: not-allowed; }
-    .meal-count { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; color: #ffffff; }
+    .meal-count { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; color: #ffffff; }
 
     /* History modal */
     #history-btn {
@@ -157,6 +139,7 @@
 
 <!-- Macro summary sticky bar -->
 <div id="macro-bar">
+  <h2>Daily Macros</h2>
   <div class="macro-grid" id="macro-grid">
     <!-- filled by JS -->
   </div>
