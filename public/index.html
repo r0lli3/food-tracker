@@ -27,9 +27,10 @@
     }
     .macro-cell { text-align: center; }
     .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.4; }
-    .macro-cell .value { font-size: 18px; font-weight: 700; color: #ffffff; display: inline; }
-    .macro-cell .target { font-size: 18px; opacity: 0.3; display: inline; }
-    .macro-cell .gap { font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .macro-cell .inline-val { white-space: nowrap; }
+    .macro-cell .value { font-size: 15px; font-weight: 700; color: #ffffff; }
+    .macro-cell .target { font-size: 15px; opacity: 0.3; }
+    .macro-cell .gap { font-size: 11px; font-weight: 600; margin-top: 2px; }
     .gap-ok { color: #cccccc; }
     .gap-over { color: #888888; }
     .gap-neutral { color: #555555; }
@@ -234,15 +235,16 @@ function renderMacroBar() {
   const labels = ['Protein', 'Carbs', 'Fat', 'Fiber', 'Cals'];
   const grid = document.getElementById('macro-grid');
   grid.innerHTML = keys.map((k, i) => {
-    const val = Math.round(t[k] * 10) / 10;
+    const val = t[k];
+    const displayVal = Math.round(val);
     const target = TARGETS[k];
     const gap = Math.round((target - val) * 10) / 10;
     const gapClass = gap < 0 ? 'gap-over' : gap === 0 ? 'gap-ok' : 'gap-neutral';
-    const gapLabel = gap > 0 ? `\u2191${gap}` : gap < 0 ? `\u2193${Math.abs(gap)}` : '\u2713';
+    const gapLabel = gap > 0 ? `\u2191${Math.round(gap)}` : gap < 0 ? `\u2193${Math.round(Math.abs(gap))}` : '\u2713';
     return `
       <div class="macro-cell">
         <div class="label">${labels[i]}</div>
-        <div><span class="value">${val}</span><span class="target"> / ${target}</span></div>
+        <div class="inline-val"><span class="value">${displayVal}</span><span class="target"> / ${target}</span></div>
         <div class="gap ${gapClass}">${gapLabel}</div>
       </div>`;
   }).join('');
