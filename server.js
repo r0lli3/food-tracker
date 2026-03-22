@@ -20,6 +20,12 @@ async function initDb() {
       PRIMARY KEY (date, meal_name)
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS weight (
+      date TEXT PRIMARY KEY,
+      kg NUMERIC(5,1) NOT NULL
+    )
+  `;
 }
 
 app.use(express.json());
@@ -51,6 +57,41 @@ app.post('/api/log', async (req, res) => {
       ON CONFLICT (date, meal_name) DO UPDATE SET count = EXCLUDED.count
     `;
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/weight?date=YYYY-MM-DD
+app.get('/api/weight', async (req, res) => {
+  const { date } = req.query;
+  try {
+    const sql = getDb();
+    if (date) {
+      const rows = await sql`SELECT kg FROM weight WHERE date = ${date}`;
+      res.json({ kg: rows.length ? parseFloat(rows[0].kg) : null });
+    } else {
+      const rows = await sql`SELECT date, kg FROM weight ORDER BY date DESC`;
+      res.json(rows.map(r => ({ date: r.date, kg: parseFloat(r.kg) })));
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/weight  body: { date, kg }
+app.post('/api/weight', async (req, res) => {
+  const { date, kg } = req.body;
+  if (!date || kg == null) return res.status(400).json({ error: 'date and kg required' });
+  const val = parseFloat(parseFloat(kg).toFixed(1));
+  if (isNaN(val)) return res.status(400).json({ error: 'invalid kg value' });
+  try {
+    const sql = getDb();
+    await sql`
+      INSERT INTO weight (date, kg) VALUES (${date}, ${val})
+      ON CONFLICT (date) DO UPDATE SET kg = EXCLUDED.kg
+    `;
+    res.json({ ok: true, date, kg: val });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -101,10 +101,13 @@
     .meal-controls button:disabled { opacity: 0.2; cursor: not-allowed; }
     .meal-count { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; color: #ffffff; }
 
-    /* History modal */
-    #history-btn {
+    /* FAB buttons */
+    .fab-group {
       position: fixed;
       bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; align-items: center;
+    }
+    .fab {
       background: #1e1e1e;
       color: #aaaaaa;
       border: 1px solid #2a2a2a;
@@ -113,7 +116,50 @@
       font-size: 20px;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
     }
+    .fab:hover { background: #252525; color: #cccccc; }
+
+    /* Weight modal */
+    #weight-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+    }
+    #weight-overlay.open { display: flex; align-items: flex-end; }
+    #weight-panel {
+      background: #111111;
+      color: #e0e0e0;
+      width: 100%;
+      border-radius: 16px 16px 0 0;
+      padding: 24px 20px 32px;
+      border-top: 1px solid #222222;
+    }
+    #weight-panel h3 { margin-bottom: 20px; color: #ffffff; font-size: 16px; }
+    .weight-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .weight-row label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #555555; }
+    .weight-row input {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 18px;
+      width: 100%;
+      outline: none;
+    }
+    .weight-row input:focus { border-color: #444444; }
+    .weight-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .weight-actions button {
+      flex: 1; padding: 12px;
+      border-radius: 8px; border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    #weight-save { background: #2a2a2a; color: #ffffff; }
+    #weight-save:hover { background: #333333; }
+    #weight-cancel { background: transparent; color: #555555; border: 1px solid #2a2a2a !important; }
+    #weight-msg { font-size: 13px; color: #666666; margin-top: 10px; min-height: 18px; text-align: center; }
     #history-overlay {
       display: none;
       position: fixed; inset: 0;
@@ -157,8 +203,31 @@
 <!-- Meals -->
 <div id="meals-container"></div>
 
-<!-- History button -->
-<button id="history-btn" title="View history">&#128203;</button>
+<!-- FAB buttons -->
+<div class="fab-group">
+  <button class="fab" id="weight-btn" title="Track weight">⚖️</button>
+  <button class="fab" id="history-btn" title="View history">&#128203;</button>
+</div>
+
+<!-- Weight overlay -->
+<div id="weight-overlay">
+  <div id="weight-panel">
+    <h3>⚖️ Weight</h3>
+    <div class="weight-row">
+      <label>Date</label>
+      <input type="date" id="weight-date" />
+    </div>
+    <div class="weight-row">
+      <label>Weight (kg)</label>
+      <input type="number" id="weight-kg" step="0.1" min="0" max="500" placeholder="e.g. 78.5" inputmode="decimal" />
+    </div>
+    <div id="weight-msg"></div>
+    <div class="weight-actions">
+      <button id="weight-cancel">Cancel</button>
+      <button id="weight-save">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- History overlay -->
 <div id="history-overlay">
@@ -389,6 +458,53 @@ function closeHistory() {
   document.getElementById('history-overlay').classList.remove('open');
 }
 
+// ─── WEIGHT TRACKER ──────────────────────────────────────────────────────────
+async function openWeight() {
+  const overlay = document.getElementById('weight-overlay');
+  const dateInput = document.getElementById('weight-date');
+  const kgInput = document.getElementById('weight-kg');
+  const msg = document.getElementById('weight-msg');
+  dateInput.value = currentDate;
+  msg.textContent = '';
+  // Pre-fill existing weight for today if any
+  try {
+    const res = await fetch(`/api/weight?date=${currentDate}`);
+    const data = await res.json();
+    kgInput.value = data.kg != null ? data.kg : '';
+  } catch (_) { kgInput.value = ''; }
+  overlay.classList.add('open');
+  setTimeout(() => kgInput.focus(), 100);
+}
+
+function closeWeight() {
+  document.getElementById('weight-overlay').classList.remove('open');
+}
+
+async function saveWeight() {
+  const date = document.getElementById('weight-date').value;
+  const kg = parseFloat(document.getElementById('weight-kg').value);
+  const msg = document.getElementById('weight-msg');
+  if (!date) { msg.textContent = 'Please enter a date.'; return; }
+  if (isNaN(kg) || kg <= 0) { msg.textContent = 'Please enter a valid weight.'; return; }
+  try {
+    const res = await fetch('/api/weight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, kg })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#888888';
+      msg.textContent = `Saved ${data.kg} kg for ${date}`;
+      setTimeout(closeWeight, 900);
+    } else {
+      msg.textContent = data.error || 'Error saving.';
+    }
+  } catch (e) {
+    msg.textContent = 'Network error.';
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('macro-bar').addEventListener('click', () => {
   macroViewIndex = (macroViewIndex + 1) % MACRO_VIEWS.length;
@@ -398,6 +514,11 @@ document.getElementById('prev-day').addEventListener('click', () => navigateToDa
 document.getElementById('next-day').addEventListener('click', () => navigateToDate(offsetDate(currentDate, 1)));
 document.getElementById('history-btn').addEventListener('click', openHistory);
 document.getElementById('history-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeHistory(); });
+document.getElementById('weight-btn').addEventListener('click', openWeight);
+document.getElementById('weight-cancel').addEventListener('click', closeWeight);
+document.getElementById('weight-save').addEventListener('click', saveWeight);
+document.getElementById('weight-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeWeight(); });
+document.getElementById('weight-kg').addEventListener('keydown', e => { if (e.key === 'Enter') saveWeight(); });
 
 navigateToDate(currentDate);
 </script>
