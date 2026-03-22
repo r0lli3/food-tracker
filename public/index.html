@@ -19,7 +19,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.6);
       border-bottom: 1px solid #222222;
     }
-    #macro-bar h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; opacity: 0.4; }
+    #macro-bar h2 { display: none; }
     .macro-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -27,8 +27,8 @@
     }
     .macro-cell { text-align: center; }
     .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.4; }
-    .macro-cell .value { font-size: 18px; font-weight: 700; color: #ffffff; }
-    .macro-cell .target { font-size: 10px; opacity: 0.3; }
+    .macro-cell .value { font-size: 18px; font-weight: 700; color: #ffffff; display: inline; }
+    .macro-cell .target { font-size: 18px; opacity: 0.3; display: inline; }
     .macro-cell .gap { font-size: 12px; font-weight: 600; margin-top: 2px; }
     .gap-ok { color: #cccccc; }
     .gap-over { color: #888888; }
@@ -65,7 +65,6 @@
       letter-spacing: 1.5px;
       color: #444444;
       padding: 6px 4px;
-      border-bottom: 1px solid #1e1e1e;
       margin-bottom: 6px;
     }
     .meal-card {
@@ -102,7 +101,7 @@
     /* History modal */
     #history-btn {
       position: fixed;
-      bottom: 20px; right: 20px;
+      bottom: 20px; left: 50%; transform: translateX(-50%);
       background: #1e1e1e;
       color: #aaaaaa;
       border: 1px solid #2a2a2a;
@@ -243,8 +242,7 @@ function renderMacroBar() {
     return `
       <div class="macro-cell">
         <div class="label">${labels[i]}</div>
-        <div class="value">${val}</div>
-        <div class="target">/ ${target}</div>
+        <div><span class="value">${val}</span><span class="target"> / ${target}</span></div>
         <div class="gap ${gapClass}">${gapLabel}</div>
       </div>`;
   }).join('');
@@ -332,9 +330,11 @@ function offsetDate(dateStr, days) {
 
 function formatDateLabel(dateStr) {
   const today = todayStr();
-  if (dateStr === today) return 'Today \u2014 ' + dateStr;
-  if (dateStr === offsetDate(today, -1)) return 'Yesterday \u2014 ' + dateStr;
-  return dateStr;
+  const [y, m, d] = dateStr.split('-');
+  const formatted = `${d}/${m}/${y}`;
+  if (dateStr === today) return 'Today \u2014 ' + formatted;
+  if (dateStr === offsetDate(today, -1)) return 'Yesterday \u2014 ' + formatted;
+  return formatted;
 }
 
 async function navigateToDate(date) {
