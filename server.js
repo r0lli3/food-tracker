@@ -97,7 +97,33 @@ app.post('/api/weight', async (req, res) => {
   }
 });
 
-// GET /api/history — all days that have been logged
+// DELETE /api/log  body: { date }
+app.delete('/api/log', async (req, res) => {
+  const { date } = req.body;
+  if (!date) return res.status(400).json({ error: 'date required' });
+  try {
+    const sql = getDb();
+    await sql`DELETE FROM logs WHERE date = ${date}`;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/weight  body: { date }
+app.delete('/api/weight', async (req, res) => {
+  const { date } = req.body;
+  if (!date) return res.status(400).json({ error: 'date required' });
+  try {
+    const sql = getDb();
+    await sql`DELETE FROM weight WHERE date = ${date}`;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/history — all days that have been logged (food + weight)
 app.get('/api/history', async (req, res) => {
   try {
     const sql = getDb();

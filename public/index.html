@@ -178,9 +178,13 @@
       border-top: 1px solid #222222;
     }
     #history-panel h3 { margin-bottom: 16px; color: #ffffff; }
-    .history-day { padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+    .history-day { padding: 10px 0; border-bottom: 1px solid #1a1a1a; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .history-day-info { flex: 1; }
     .history-day-date { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: #cccccc; }
     .history-day-macros { font-size: 12px; color: #444444; }
+    .history-day-weight { font-size: 12px; color: #555555; margin-top: 2px; }
+    .history-delete-btn { background: none; border: none; color: #333333; font-size: 16px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; line-height: 1; }
+    .history-delete-btn:hover { color: #888888; }
   </style>
 </head>
 <body>
@@ -421,37 +425,74 @@ async function navigateToDate(date) {
 // ─── HISTORY ─────────────────────────────────────────────────────────────────
 async function openHistory() {
   document.getElementById('history-overlay').classList.add('open');
-  const list = document.getElementById('history-list');
-  try {
-    const daysRes = await fetch('/api/history');
-    const days = await daysRes.json();
-    if (!days.length) { list.innerHTML = '<p>No history yet.</p>'; return; }
+  await refreshHistory();
+}
 
-    const rows = await Promise.all(days.map(async date => {
-      const res = await fetch(`/api/log?date=${date}`);
-      const data = await res.json();
-      let protein = 0, carbs = 0, fat = 0, fiber = 0, cals = 0;
-      for (const meal of allMeals()) {
-        const n = data[meal.id] || 0;
-        protein += meal.protein * n;
-        carbs   += meal.carbs * n;
-        fat     += meal.fat * n;
-        fiber   += meal.fiber * n;
-        cals    += meal.cals * n;
+async function refreshHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = 'Loading...';
+  try {
+    const [daysRes, weightsRes] = await Promise.all([
+      fetch('/api/history'),
+      fetch('/api/weight')
+    ]);
+    const days = await daysRes.json();
+    const weightList = await weightsRes.json(); // [{ date, kg }]
+    const weightMap = Object.fromEntries(weightList.map(w => [w.date, w.kg]));
+
+    // Merge: all days with food logs + any weight-only days
+    const allDates = [...new Set([...days, ...weightList.map(w => w.date)])].sort((a,b) => b.localeCompare(a));
+
+    if (!allDates.length) { list.innerHTML = '<p style="color:#444">No history yet.</p>'; return; }
+
+    const rows = await Promise.all(allDates.map(async date => {
+      let protein = 0, carbs = 0, fat = 0, fiber = 0, cals = 0, hasFood = false;
+      if (days.includes(date)) {
+        const res = await fetch(`/api/log?date=${date}`);
+        const data = await res.json();
+        for (const meal of allMeals()) {
+          const n = data[meal.id] || 0;
+          if (n > 0) hasFood = true;
+          protein += meal.protein * n;
+          carbs   += meal.carbs * n;
+          fat     += meal.fat * n;
+          fiber   += meal.fiber * n;
+          cals    += meal.cals * n;
+        }
       }
-      return { date, protein, carbs, fat, fiber, cals };
+      return { date, protein, carbs, fat, fiber, cals, hasFood, kg: weightMap[date] ?? null };
     }));
 
-    list.innerHTML = rows.map(r => `
-      <div class="history-day">
-        <div class="history-day-date">${r.date}</div>
-        <div class="history-day-macros">
-          P ${r.protein.toFixed(1)}g \u00b7 C ${r.carbs.toFixed(1)}g \u00b7 F ${r.fat.toFixed(1)}g \u00b7 Fb ${r.fiber.toFixed(1)}g \u00b7 ${Math.round(r.cals)} kcal
-        </div>
-      </div>`).join('');
+    list.innerHTML = rows.map(r => {
+      const [y,m,d] = r.date.split('-');
+      const dateLabel = `${d}/${m}/${y}`;
+      const macroLine = r.hasFood
+        ? `P ${Math.round(r.protein)}g &middot; C ${Math.round(r.carbs)}g &middot; F ${Math.round(r.fat)}g &middot; ${Math.round(r.cals)} kcal`
+        : '';
+      const weightLine = r.kg != null ? `⚖️ ${r.kg} kg` : '';
+      return `
+        <div class="history-day" id="hday-${r.date}">
+          <div class="history-day-info">
+            <div class="history-day-date">${dateLabel}</div>
+            ${macroLine ? `<div class="history-day-macros">${macroLine}</div>` : ''}
+            ${weightLine ? `<div class="history-day-weight">${weightLine}</div>` : ''}
+          </div>
+          <button class="history-delete-btn" onclick="deleteDay('${r.date}')" title="Delete entry">✕</button>
+        </div>`;
+    }).join('');
   } catch (e) {
-    list.innerHTML = '<p>Error loading history.</p>';
+    list.innerHTML = '<p style="color:#555">Error loading history.</p>';
   }
+}
+
+async function deleteDay(date) {
+  if (!confirm(`Delete all entries for ${date}?`)) return;
+  await Promise.all([
+    fetch('/api/log',    { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }) }),
+    fetch('/api/weight', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }) })
+  ]);
+  await refreshHistory();
+  if (date === currentDate) { await loadDay(currentDate); renderMeals(); renderMacroBar(); }
 }
 
 function closeHistory() {
