@@ -24,7 +24,9 @@
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 6px;
+      transition: all 0.2s ease;
     }
+    #macro-bar { cursor: pointer; user-select: none; }
     .macro-cell { text-align: center; }
     .macro-cell .label { font-size: 10px; text-transform: uppercase; opacity: 0.4; }
     .macro-cell .inline-val { white-space: nowrap; }
@@ -199,6 +201,12 @@ const TARGETS = { protein: 155, carbs: 180, fat: 50, fiber: 30, cals: 1790 };
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let counts = {};   // { mealId: number }
 let currentDate = todayStr();
+let macroViewIndex = 0;
+const MACRO_VIEWS = [
+  { keys: ['protein', 'carbs', 'fat', 'fiber', 'cals'], labels: ['Protein', 'Carbs', 'Fat', 'Fiber', 'Cals'] },
+  { keys: ['protein', 'carbs', 'fat', 'cals'],          labels: ['Protein', 'Carbs', 'Fat', 'Cals'] },
+  { keys: ['protein', 'carbs', 'fat'],                  labels: ['Protein', 'Carbs', 'Fat'] },
+];
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -224,9 +232,9 @@ function computeTotals() {
 
 function renderMacroBar() {
   const t = computeTotals();
-  const keys = ['protein', 'carbs', 'fat', 'fiber', 'cals'];
-  const labels = ['Protein', 'Carbs', 'Fat', 'Fiber', 'Cals'];
+  const { keys, labels } = MACRO_VIEWS[macroViewIndex];
   const grid = document.getElementById('macro-grid');
+  grid.style.gridTemplateColumns = `repeat(${keys.length}, 1fr)`;
   grid.innerHTML = keys.map((k, i) => {
     const val = t[k];
     const displayVal = Math.round(val);
@@ -382,6 +390,10 @@ function closeHistory() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+document.getElementById('macro-bar').addEventListener('click', () => {
+  macroViewIndex = (macroViewIndex + 1) % MACRO_VIEWS.length;
+  renderMacroBar();
+});
 document.getElementById('prev-day').addEventListener('click', () => navigateToDate(offsetDate(currentDate, -1)));
 document.getElementById('next-day').addEventListener('click', () => navigateToDate(offsetDate(currentDate, 1)));
 document.getElementById('history-btn').addEventListener('click', openHistory);
