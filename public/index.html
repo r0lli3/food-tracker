@@ -277,7 +277,7 @@ const TARGETS = { protein: 155, carbs: 180, fat: 50, fiber: 30, cals: 1790 };
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let counts = {};   // { mealId: number }
 let currentDate = todayStr();
-let macroViewIndex = 0;
+let macroViewIndex = 2;
 const MACRO_VIEWS = [
   { keys: ['protein', 'carbs', 'fat', 'fiber', 'cals'], labels: ['Protein', 'Carbs', 'Fat', 'Fiber', 'Cals'] },
   { keys: ['protein', 'carbs', 'fat', 'cals'],          labels: ['Protein', 'Carbs', 'Fat', 'Cals'] },
