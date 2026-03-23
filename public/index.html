@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Food Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍴</text></svg>" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
@@ -34,7 +35,7 @@
     .macro-cell .value.near-target { color: #4caf50; }
     .macro-cell .target { font-size: 15px; opacity: 0.3; }
     .macro-cell .gap { font-size: 11px; font-weight: 600; margin-top: 2px; }
-    .gap-ok { color: #cccccc; }
+    .gap-neutral { color: #555555; }
     .gap-over { color: #888888; }
     .gap-neutral { color: #555555; }
 
@@ -285,7 +286,7 @@ const MACRO_VIEWS = [
 ];
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
 }
 
 function allMeals() {
@@ -316,7 +317,8 @@ function renderMacroBar() {
     const displayVal = Math.round(val);
     const target = TARGETS[k];
     const gap = Math.round((target - val) * 10) / 10;
-    const gapClass = gap < 0 ? 'gap-over' : gap === 0 ? 'gap-ok' : 'gap-neutral';
+    const withinTen = Math.abs(gap) / target <= 0.10;
+    const gapClass = gap === 0 ? 'gap-ok' : withinTen ? 'gap-near' : gap < 0 ? 'gap-over' : 'gap-neutral';
     const gapLabel = gap > 0 ? `\u25b3${Math.round(gap)}` : gap < 0 ? `\u25bd${Math.round(Math.abs(gap))}` : '\u2713';
     return `
       <div class="macro-cell">
