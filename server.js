@@ -134,6 +134,20 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
+// GET /api/history/summary — all logs + weights in one query
+app.get('/api/history/summary', async (req, res) => {
+  try {
+    const sql = getDb();
+    const [logs, weights] = await Promise.all([
+      sql`SELECT date, meal_name, count FROM logs WHERE count > 0 ORDER BY date DESC`,
+      sql`SELECT date, kg FROM weight ORDER BY date DESC`
+    ]);
+    res.json({ logs, weights: weights.map(r => ({ date: r.date, kg: parseFloat(r.kg) })) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 if (require.main === module) {
   initDb()
     .then(() => app.listen(PORT, () => console.log(`Food Tracker running at http://localhost:${PORT}`)))
