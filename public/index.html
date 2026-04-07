@@ -217,7 +217,27 @@
     .history-day-weight { font-size: 18px; color: #555555; margin-top: 2px; }
     .history-delete-btn { background: none; border: none; color: #333333; font-size: 16px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; line-height: 1; }
     .history-delete-btn:hover { color: #888888; }
-  </style>
+
+    /* Targets overlay */
+    #targets-panel .targets-header {
+      font-size: 13px; color: #666666; margin-bottom: 14px; line-height: 1.5;
+    }
+    #targets-panel .targets-header strong { color: #cccccc; font-weight: 600; }
+    .target-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px; margin-bottom: 4px;
+      background: #161616; border-left: 3px solid transparent;
+    }
+    .target-row .multiplier { font-size: 18px; font-weight: 700; color: #ffffff; min-width: 28px; text-align: center; }
+    .target-row .category { flex: 1; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #777777; }
+    .target-row .calories { font-size: 16px; font-weight: 700; color: #dddddd; }
+    .target-row .calories .unit { font-size: 11px; color: #555555; font-weight: 400; margin-left: 2px; }
+    .target-row.cat-extreme-gain { border-left-color: #4caf50; }
+    .target-row.cat-moderate-gain { border-left-color: #29b6f6; }
+    .target-row.cat-maintenance { border-left-color: #ffeb3b; }
+    .target-row.cat-moderate-loss { border-left-color: #ff9800; }
+    .target-row.cat-extreme-loss { border-left-color: #f44336; }
+</style>
 </head>
 <body>
 
@@ -241,7 +261,18 @@
 
 <!-- FAB buttons -->
 <div class="fab-group">
+  <button class="fab" id="targets-btn" title="Calorie targets">&#127919;</button>
   <button class="fab" id="history-btn" title="View history">&#128203;</button>
+</div>
+
+<!-- Targets overlay -->
+<div id="targets-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:flex-end;">
+  <div id="targets-panel" style="background:#111111;color:#e0e0e0;width:100%;max-height:80vh;border-radius:16px 16px 0 0;padding:20px;overflow-y:auto;border-top:1px solid #222222;">
+    <h3 style="margin-bottom:12px;color:#ffffff;">Calorie Targets</h3>
+    <div class="targets-header" id="targets-header"></div>
+    <div id="targets-list"></div>
+    <button onclick="closeTargets()" style="margin-top:16px;padding:10px 20px;border:1px solid #2a2a2a;background:#1e1e1e;color:#aaaaaa;border-radius:8px;cursor:pointer;">Close</button>
+  </div>
 </div>
 
 <!-- History overlay -->
@@ -631,6 +662,61 @@ function closeHistory() {
   document.getElementById('history-overlay').classList.remove('open');
 }
 
+// ─── CALORIE TARGETS ─────────────────────────────────────────────────────────
+const TARGET_BANDS = [
+  { mult: 21, cat: 'Extreme Weight Gain',   cls: 'cat-extreme-gain' },
+  { mult: 20, cat: 'Extreme Weight Gain',   cls: 'cat-extreme-gain' },
+  { mult: 19, cat: 'Extreme Weight Gain',   cls: 'cat-extreme-gain' },
+  { mult: 18, cat: 'Moderate Weight Gain',  cls: 'cat-moderate-gain' },
+  { mult: 17, cat: 'Moderate Weight Gain',  cls: 'cat-moderate-gain' },
+  { mult: 16, cat: 'Moderate Weight Gain',  cls: 'cat-moderate-gain' },
+  { mult: 15, cat: 'Maintenance',           cls: 'cat-maintenance' },
+  { mult: 14, cat: 'Maintenance',           cls: 'cat-maintenance' },
+  { mult: 13, cat: 'Maintenance',           cls: 'cat-maintenance' },
+  { mult: 12, cat: 'Moderate Weight Loss',  cls: 'cat-moderate-loss' },
+  { mult: 11, cat: 'Moderate Weight Loss',  cls: 'cat-moderate-loss' },
+  { mult: 10, cat: 'Moderate Weight Loss',  cls: 'cat-moderate-loss' },
+  { mult: 9,  cat: 'Extreme Weight Loss',   cls: 'cat-extreme-loss' },
+  { mult: 8,  cat: 'Extreme Weight Loss',   cls: 'cat-extreme-loss' },
+  { mult: 7,  cat: 'Extreme Weight Loss',   cls: 'cat-extreme-loss' },
+];
+
+async function openTargets() {
+  document.getElementById('targets-overlay').style.display = 'flex';
+  const header = document.getElementById('targets-header');
+  const list = document.getElementById('targets-list');
+  header.textContent = 'Loading…';
+  list.innerHTML = '';
+  try {
+    const res = await fetch('/api/weight');
+    const weights = await res.json();
+    if (!Array.isArray(weights) || weights.length === 0) {
+      header.innerHTML = 'No weight logged yet. Log your weight first to see targets.';
+      return;
+    }
+    const latest = weights[0];
+    const kg = latest.kg;
+    const lbs = kg * 2.20462;
+    const [y, m, d] = latest.date.split('-');
+    header.innerHTML = `Based on <strong>${kg} kg</strong> (${lbs.toFixed(1)} lbs) logged on ${d}/${m}/${y}`;
+    list.innerHTML = TARGET_BANDS.map(b => {
+      const cals = Math.round(lbs * b.mult);
+      return `
+        <div class="target-row ${b.cls}">
+          <div class="multiplier">${b.mult}</div>
+          <div class="category">${b.cat}</div>
+          <div class="calories">${cals.toLocaleString()}<span class="unit"> kcal</span></div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    header.textContent = 'Error loading weight.';
+  }
+}
+
+function closeTargets() {
+  document.getElementById('targets-overlay').style.display = 'none';
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('macro-bar').addEventListener('click', () => {
   macroViewIndex = (macroViewIndex + 1) % MACRO_VIEWS.length;
@@ -640,6 +726,8 @@ document.getElementById('prev-day').addEventListener('click', () => navigateToDa
 document.getElementById('next-day').addEventListener('click', () => navigateToDate(offsetDate(currentDate, 1)));
 document.getElementById('history-btn').addEventListener('click', openHistory);
 document.getElementById('history-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeHistory(); });
+document.getElementById('targets-btn').addEventListener('click', openTargets);
+document.getElementById('targets-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeTargets(); });
 navigateToDate(currentDate);
 </script>
 </body>
