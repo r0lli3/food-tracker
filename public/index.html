@@ -239,6 +239,52 @@
     .target-row.cat-moderate-loss { border-left-color: #ff9800; }
     .target-row.cat-extreme-loss { border-left-color: #f44336; }
 
+    /* Progress overlay */
+    #progress-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: flex-end;
+    }
+    #progress-overlay.open { display: flex; }
+    #progress-panel {
+      background: #111111;
+      color: #e0e0e0;
+      width: 100%;
+      max-height: 85vh;
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      overflow-y: auto;
+      border-top: 1px solid #222222;
+    }
+    #progress-panel h3 { margin-bottom: 12px; color: #ffffff; }
+    .progress-summary {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; margin-bottom: 14px;
+    }
+    .progress-stat {
+      background: #161616; border-radius: 8px; padding: 10px 6px;
+      text-align: center;
+    }
+    .progress-stat .label { font-size: 10px; text-transform: uppercase; color: #555555; letter-spacing: 1px; }
+    .progress-stat .value { font-size: 16px; font-weight: 700; color: #dddddd; margin-top: 4px; }
+    .progress-stat .value.delta-up { color: #4caf50; }
+    .progress-stat .value.delta-down { color: #f44336; }
+    #progress-chart { width: 100%; height: 240px; display: block; background: #0a0a0a; border-radius: 8px; }
+    .progress-legend {
+      display: flex; gap: 14px; justify-content: center;
+      margin-top: 10px; font-size: 11px; color: #888888; flex-wrap: wrap;
+    }
+    .progress-legend .swatch { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 5px; }
+    .progress-anchor-info { font-size: 11px; color: #555555; text-align: center; margin-top: 10px; }
+    .progress-actions { display: flex; gap: 8px; justify-content: space-between; margin-top: 14px; }
+    .progress-actions button {
+      padding: 8px 12px; border: 1px solid #2a2a2a; background: #1e1e1e; color: #aaaaaa;
+      border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .progress-actions button:hover { background: #252525; color: #dddddd; }
+
     /* Bottom tab navigation */
     body { padding-bottom: 60px; }
     #bottom-tabs {
@@ -309,6 +355,7 @@
 <!-- FAB buttons -->
 <div class="fab-group">
   <button class="fab" id="targets-btn" title="Calorie targets">&#127919;</button>
+  <button class="fab" id="progress-btn" title="Weight progress">&#128200;</button>
   <button class="fab" id="history-btn" title="View history">&#128203;</button>
 </div>
 
@@ -328,6 +375,25 @@
     <h3>Log History</h3>
     <div id="history-list">Loading...</div>
     <button onclick="closeHistory()" style="margin-top:16px;padding:10px 20px;border:1px solid #2a2a2a;background:#1e1e1e;color:#aaaaaa;border-radius:8px;cursor:pointer;">Close</button>
+  </div>
+</div>
+
+<!-- Progress overlay -->
+<div id="progress-overlay">
+  <div id="progress-panel">
+    <h3>Weight Progress</h3>
+    <div id="progress-summary" class="progress-summary"></div>
+    <svg id="progress-chart" viewBox="0 0 320 240" preserveAspectRatio="none"></svg>
+    <div class="progress-legend">
+      <span><span class="swatch" style="background:#666666"></span>Daily</span>
+      <span><span class="swatch" style="background:#4caf50"></span>4-week avg</span>
+      <span><span class="swatch" style="background:#29b6f6"></span>Ideal +0.25%/wk</span>
+    </div>
+    <div class="progress-anchor-info" id="progress-anchor-info"></div>
+    <div class="progress-actions">
+      <button id="reset-anchor-btn">Set new phase from latest</button>
+      <button onclick="closeProgress()">Close</button>
+    </div>
   </div>
 </div>
 
@@ -797,6 +863,160 @@ function closeTargets() {
   document.getElementById('targets-overlay').style.display = 'none';
 }
 
+// ─── PROGRESS CHART ──────────────────────────────────────────────────────────
+const PROGRESS_RATE_PER_WEEK = 0.0025; // 0.25%
+const PROGRESS_ROLLING_DAYS = 28;
+const PROGRESS_ANCHOR_KEY = 'fft_progress_anchor';
+
+function getProgressAnchor() {
+  try {
+    const raw = localStorage.getItem(PROGRESS_ANCHOR_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.date && typeof parsed.kg === 'number') return parsed;
+  } catch (_) {}
+  return null;
+}
+
+function setProgressAnchor(anchor) {
+  localStorage.setItem(PROGRESS_ANCHOR_KEY, JSON.stringify(anchor));
+}
+
+function diffDaysISO(a, b) {
+  const d1 = new Date(a + 'T00:00:00Z');
+  const d2 = new Date(b + 'T00:00:00Z');
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function rollingAverages(weightsAsc, windowDays) {
+  // window = trailing windowDays-1, includes current day
+  return weightsAsc.map((w, i) => {
+    const cutoff = new Date(w.date + 'T00:00:00Z');
+    cutoff.setUTCDate(cutoff.getUTCDate() - (windowDays - 1));
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    let sum = 0, n = 0;
+    for (let j = i; j >= 0; j--) {
+      if (weightsAsc[j].date < cutoffStr) break;
+      sum += weightsAsc[j].kg;
+      n++;
+    }
+    return { date: w.date, kg: n > 0 ? sum / n : null };
+  });
+}
+
+async function openProgress() {
+  document.getElementById('progress-overlay').classList.add('open');
+  document.getElementById('progress-summary').innerHTML = '<div style="grid-column:1/-1;color:#555555;text-align:center;padding:8px">Loading…</div>';
+  document.getElementById('progress-chart').innerHTML = '';
+  document.getElementById('progress-anchor-info').textContent = '';
+  try {
+    const res = await fetch('/api/weight');
+    const weights = await res.json();
+    if (!Array.isArray(weights) || weights.length === 0) {
+      document.getElementById('progress-summary').innerHTML = '<div style="grid-column:1/-1;color:#555555;text-align:center;padding:20px">Log a weight to see progress.</div>';
+      return;
+    }
+    const asc = weights.slice().sort((a, b) => a.date.localeCompare(b.date));
+    let anchor = getProgressAnchor();
+    if (!anchor) {
+      anchor = { date: asc[0].date, kg: asc[0].kg };
+      setProgressAnchor(anchor);
+    }
+    renderProgress(asc, anchor);
+  } catch (e) {
+    document.getElementById('progress-summary').innerHTML = '<div style="grid-column:1/-1;color:#f44336;text-align:center;padding:8px">Error loading data.</div>';
+  }
+}
+
+function closeProgress() {
+  document.getElementById('progress-overlay').classList.remove('open');
+}
+
+function renderProgress(weightsAsc, anchor) {
+  const today = todayStr();
+  const phaseWeights = weightsAsc.filter(w => w.date >= anchor.date);
+  const latest = phaseWeights.length ? phaseWeights[phaseWeights.length - 1] : { date: anchor.date, kg: anchor.kg };
+  const rollingAll = rollingAverages(weightsAsc, PROGRESS_ROLLING_DAYS);
+  const rollingInPhase = rollingAll.filter(r => r.date >= anchor.date && r.kg != null);
+
+  function idealAt(dateStr) {
+    const days = diffDaysISO(anchor.date, dateStr);
+    if (days < 0) return null;
+    return anchor.kg * Math.pow(1 + PROGRESS_RATE_PER_WEEK, days / 7);
+  }
+
+  const idealAtLatest = idealAt(latest.date);
+  const totalGain = latest.kg - anchor.kg;
+  const weeksElapsed = diffDaysISO(anchor.date, latest.date) / 7;
+  const actualPctPerWeek = weeksElapsed > 0 ? Math.pow(latest.kg / anchor.kg, 1 / weeksElapsed) - 1 : 0;
+  const deltaVsIdeal = latest.kg - idealAtLatest;
+
+  document.getElementById('progress-summary').innerHTML = `
+    <div class="progress-stat">
+      <div class="label">Latest</div>
+      <div class="value">${latest.kg.toFixed(1)} kg</div>
+    </div>
+    <div class="progress-stat">
+      <div class="label">Phase Δ</div>
+      <div class="value ${totalGain >= 0 ? 'delta-up' : 'delta-down'}">${totalGain >= 0 ? '+' : ''}${totalGain.toFixed(1)} kg</div>
+    </div>
+    <div class="progress-stat">
+      <div class="label">Rate / wk</div>
+      <div class="value">${(actualPctPerWeek * 100).toFixed(2)}%</div>
+    </div>
+  `;
+
+  // Chart geometry
+  const W = 320, H = 240;
+  const padL = 32, padR = 10, padT = 10, padB = 24;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+
+  const xStart = anchor.date;
+  const xEnd = today >= latest.date ? today : latest.date;
+  const totalDays = Math.max(1, diffDaysISO(xStart, xEnd));
+  const xAt = ds => padL + (diffDaysISO(xStart, ds) / totalDays) * innerW;
+
+  const idealEndKg = idealAt(xEnd);
+  const yVals = [
+    ...phaseWeights.map(w => w.kg),
+    ...rollingInPhase.map(r => r.kg),
+    anchor.kg, idealEndKg,
+  ];
+  let yMin = Math.min(...yVals);
+  let yMax = Math.max(...yVals);
+  const range = Math.max(0.5, yMax - yMin);
+  yMin -= range * 0.1;
+  yMax += range * 0.1;
+  const yAt = kg => padT + (1 - (kg - yMin) / (yMax - yMin)) * innerH;
+
+  const actualPts = phaseWeights.map(w => `${xAt(w.date).toFixed(1)},${yAt(w.kg).toFixed(1)}`).join(' ');
+  const rollingPts = rollingInPhase.map(r => `${xAt(r.date).toFixed(1)},${yAt(r.kg).toFixed(1)}`).join(' ');
+  const idealX1 = xAt(anchor.date), idealY1 = yAt(anchor.kg);
+  const idealX2 = xAt(xEnd), idealY2 = yAt(idealEndKg);
+
+  const yTicks = [yMax, (yMin + yMax) / 2, yMin];
+  const svg = document.getElementById('progress-chart');
+  svg.innerHTML = `
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#222222" stroke-width="1"/>
+    <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#222222" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT + innerH / 2}" x2="${W - padR}" y2="${padT + innerH / 2}" stroke="#1a1a1a" stroke-width="1" stroke-dasharray="2,3"/>
+    <text x="${padL - 4}" y="${padT + 4}" fill="#444444" font-size="9" text-anchor="end">${yTicks[0].toFixed(1)}</text>
+    <text x="${padL - 4}" y="${padT + innerH / 2 + 3}" fill="#444444" font-size="9" text-anchor="end">${yTicks[1].toFixed(1)}</text>
+    <text x="${padL - 4}" y="${H - padB}" fill="#444444" font-size="9" text-anchor="end">${yTicks[2].toFixed(1)}</text>
+    <text x="${padL}" y="${H - padB + 14}" fill="#444444" font-size="9" text-anchor="start">${xStart.slice(5)}</text>
+    <text x="${W - padR}" y="${H - padB + 14}" fill="#444444" font-size="9" text-anchor="end">${xEnd.slice(5)}</text>
+    <line x1="${idealX1.toFixed(1)}" y1="${idealY1.toFixed(1)}" x2="${idealX2.toFixed(1)}" y2="${idealY2.toFixed(1)}" stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="4,3"/>
+    ${actualPts ? `<polyline points="${actualPts}" fill="none" stroke="#666666" stroke-width="1"/>` : ''}
+    ${rollingPts ? `<polyline points="${rollingPts}" fill="none" stroke="#4caf50" stroke-width="2"/>` : ''}
+  `;
+
+  const [ay, am, ad] = anchor.date.split('-');
+  const deltaSign = deltaVsIdeal >= 0 ? '+' : '';
+  document.getElementById('progress-anchor-info').innerHTML =
+    `Phase started ${ad}/${am}/${ay} at ${anchor.kg.toFixed(1)} kg • ` +
+    `vs ideal: <strong style="color:${Math.abs(deltaVsIdeal) < 0.3 ? '#888888' : (deltaVsIdeal < 0 ? '#ff9800' : '#4caf50')}">${deltaSign}${deltaVsIdeal.toFixed(2)} kg</strong>`;
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.getElementById('macro-bar').addEventListener('click', () => {
   macroViewIndex = (macroViewIndex + 1) % MACRO_VIEWS.length;
@@ -808,6 +1028,18 @@ document.getElementById('history-btn').addEventListener('click', openHistory);
 document.getElementById('history-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeHistory(); });
 document.getElementById('targets-btn').addEventListener('click', openTargets);
 document.getElementById('targets-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeTargets(); });
+document.getElementById('progress-btn').addEventListener('click', openProgress);
+document.getElementById('progress-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeProgress(); });
+document.getElementById('reset-anchor-btn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/weight');
+    const weights = await res.json();
+    if (!Array.isArray(weights) || weights.length === 0) return;
+    const latest = weights[0]; // server returns DESC
+    setProgressAnchor({ date: latest.date, kg: latest.kg });
+    openProgress();
+  } catch (_) {}
+});
 navigateToDate(currentDate);
 </script>
 </body>
