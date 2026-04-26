@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Food Tracker</title>
+  <title>Food and Finance Tracker</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍴</text></svg>" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
@@ -176,8 +176,9 @@
     /* FAB buttons */
     .fab-group {
       position: fixed;
-      bottom: 20px; left: 50%; transform: translateX(-50%);
+      bottom: 76px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 12px; align-items: center;
+      z-index: 90;
     }
     .fab {
       background: #1e1e1e;
@@ -237,9 +238,55 @@
     .target-row.cat-maintenance { border-left-color: #ffeb3b; }
     .target-row.cat-moderate-loss { border-left-color: #ff9800; }
     .target-row.cat-extreme-loss { border-left-color: #f44336; }
+
+    /* Bottom tab navigation */
+    body { padding-bottom: 60px; }
+    #bottom-tabs {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: #0f0f0f;
+      border-top: 1px solid #1f1f1f;
+      z-index: 150;
+    }
+    #bottom-tabs button {
+      background: none;
+      border: none;
+      color: #555555;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 0 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    #bottom-tabs button .tab-icon { font-size: 20px; line-height: 1; }
+    #bottom-tabs button.active { color: #ffffff; }
+
+    /* Finance view */
+    #finance-view {
+      display: none;
+      min-height: calc(100vh - 60px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      color: #555555;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    #finance-view.active { display: flex; }
+    #finance-view .coming-icon { font-size: 48px; opacity: 0.4; }
+    #finance-view .coming-title { font-size: 18px; color: #888888; font-weight: 600; }
+    #finance-view .coming-sub { font-size: 13px; color: #444444; }
 </style>
 </head>
 <body>
+
+<div id="food-view">
 
 <!-- Macro summary sticky bar -->
 <div id="macro-bar">
@@ -283,6 +330,39 @@
     <button onclick="closeHistory()" style="margin-top:16px;padding:10px 20px;border:1px solid #2a2a2a;background:#1e1e1e;color:#aaaaaa;border-radius:8px;cursor:pointer;">Close</button>
   </div>
 </div>
+
+</div><!-- /#food-view -->
+
+<!-- Finance view (stub) -->
+<div id="finance-view">
+  <div class="coming-icon">💰</div>
+  <div class="coming-title">Finance</div>
+  <div class="coming-sub">Coming soon</div>
+</div>
+
+<!-- Bottom tab navigation -->
+<nav id="bottom-tabs">
+  <button type="button" class="active" data-view="food"><span class="tab-icon">🍴</span>Food</button>
+  <button type="button" data-view="finance"><span class="tab-icon">💰</span>Finance</button>
+</nav>
+
+<script>
+// ─── TAB NAVIGATION ──────────────────────────────────────────────────────────
+(function () {
+  const tabs = document.querySelectorAll('#bottom-tabs button');
+  const foodView = document.getElementById('food-view');
+  const financeView = document.getElementById('finance-view');
+  const fabGroup = document.querySelector('.fab-group');
+  function showView(view) {
+    const isFood = view === 'food';
+    foodView.style.display = isFood ? '' : 'none';
+    financeView.classList.toggle('active', !isFood);
+    if (fabGroup) fabGroup.style.display = isFood ? '' : 'none';
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showView(t.dataset.view)));
+})();
+</script>
 
 <script>
 // ─── MEAL DATA ───────────────────────────────────────────────────────────────

@@ -150,7 +150,7 @@ app.get('/api/history/summary', async (req, res) => {
 
 if (require.main === module) {
   initDb()
-    .then(() => app.listen(PORT, () => console.log(`Food Tracker running at http://localhost:${PORT}`)))
+    .then(() => app.listen(PORT, () => console.log(`Food and Finance Tracker running at http://localhost:${PORT}`)))
     .catch(console.error);
 }
 

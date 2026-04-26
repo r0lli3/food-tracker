@@ -1,6 +1,6 @@
-# Food Tracker
+# Food and Finance Tracker
 
-A personal food tracker with pre-loaded meals, real-time macro tracking, and daily history.
+Personal app for tracking health and wealth under one roof. Two tabs: **Food** (pre-loaded meals, real-time macro tracking, weight, daily history) and **Finance** (coming soon).
 
 ## Run
 
